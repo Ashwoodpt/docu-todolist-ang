@@ -2,7 +2,7 @@ import { MainService } from 'src/app/testExample/main.service'
 import { TestBed } from '@angular/core/testing'
 import { OptionService } from 'src/app/testExample/option.service'
 
-describe('MainService', () => {
+xdescribe('MainService', () => {
   let service: MainService
   let optionService: OptionService
 

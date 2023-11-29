@@ -28,7 +28,9 @@ export class LoginComponent {
   }
 
   onLoginSubmit() {
-    const value = this.loginForm.value
-    this.authService.login(value)
+    if (this.loginForm.valid === true) {
+      const value = this.loginForm.value
+      this.authService.login(value)
+    }
   }
 }

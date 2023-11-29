@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
-import { HttpClient } from '@angular/common/http'
-import { BehaviorSubject } from 'rxjs'
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { BehaviorSubject, EMPTY } from 'rxjs'
 import {
   DomainTask,
   GetTasksResponse,
@@ -8,7 +8,7 @@ import {
   UpdateTaskRequest,
 } from 'src/app/todos/models/tasks.models'
 import { environment } from 'src/environments/environment'
-import { map } from 'rxjs/operators'
+import { catchError, map } from 'rxjs/operators'
 import { CommonResponseType } from 'src/app/core/models/core.models'
 
 @Injectable({
@@ -20,6 +20,7 @@ export class TasksService {
   getTasks(todoId: string) {
     this.http
       .get<GetTasksResponse>(`${environment.baseUrl}/todo-lists/${todoId}/tasks`)
+      .pipe(catchError(this.handleError.bind(this)))
       .pipe(map(res => res.items))
       .subscribe((res: Task[]) => {
         const stateTasks = this.tasks$.getValue()
@@ -33,6 +34,7 @@ export class TasksService {
         `${environment.baseUrl}/todo-lists/${todoId}/tasks`,
         { title }
       )
+      .pipe(catchError(this.handleError.bind(this)))
       .pipe(
         map(res => {
           const stateTasks = this.tasks$.getValue()
@@ -49,6 +51,7 @@ export class TasksService {
   deleteTask(todoId: string, taskId: string) {
     this.http
       .delete<CommonResponseType>(`${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`)
+      .pipe(catchError(this.handleError.bind(this)))
       .pipe(
         map(() => {
           const stateTasks = this.tasks$.getValue()
@@ -68,6 +71,7 @@ export class TasksService {
         `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`,
         newTask
       )
+      .pipe(catchError(this.handleError.bind(this)))
       .pipe(
         map(() => {
           const stateTasks = this.tasks$.getValue()
@@ -82,5 +86,9 @@ export class TasksService {
       .subscribe(res => {
         this.tasks$.next(res)
       })
+  }
+  private handleError(error: HttpErrorResponse) {
+    // theoretical error handling
+    return EMPTY
   }
 }

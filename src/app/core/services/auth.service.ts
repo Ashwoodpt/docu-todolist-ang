@@ -54,7 +54,10 @@ export class AuthService {
       .subscribe(res => {
         if (res.resultCode === ResultCodeEnum.success) {
           this.isAuth = true
+        } else {
+          this.isAuth = false
         }
+
         this.resolveAuthRequest()
       })
   }
