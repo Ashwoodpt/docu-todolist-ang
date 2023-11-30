@@ -22,6 +22,12 @@ const validCredentialsMock: LoginRequestData = {
   rememberMe: false,
 }
 
+const fakeNotificationService = jasmine.createSpyObj('NotificationService', [
+  'handleError',
+  'handleSuccess',
+  'clear',
+])
+
 describe('Auth service test', () => {
   let service: AuthService
   let notificationService: NotificationService
@@ -30,7 +36,7 @@ describe('Auth service test', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [AuthService, { provide: NotificationService }],
+      providers: [AuthService, { provide: NotificationService, useValue: fakeNotificationService }],
       imports: [HttpClientTestingModule, RouterTestingModule.withRoutes(routes)],
     })
 
@@ -42,6 +48,7 @@ describe('Auth service test', () => {
 
   afterEach(() => {
     httpTestingController.verify()
+    fakeNotificationService.handleError.calls.reset()
   })
 
   it('auth service should init', () => {
@@ -86,20 +93,18 @@ describe('Auth service test', () => {
           resultCode: ResultCodeEnum.error,
         },
       })
-      const notificationHandleErrorSpy = spyOn(notificationService, 'handleError')
       service.login(invalidCredentialsMock)
       const req = httpTestingController.expectOne(`${environment.baseUrl}/auth/login`)
       req.event(expectedResponse)
-      expect(notificationHandleErrorSpy).toHaveBeenCalledTimes(1)
+      expect(notificationService.handleError).toHaveBeenCalledTimes(1)
     })
 
     it('login method should invoke handleError method of notificationService if request fails', () => {
       const errorResponse = new ErrorEvent('404')
-      const notificationHandleErrorSpy = spyOn(notificationService, 'handleError')
       service.login(invalidCredentialsMock)
       const req = httpTestingController.expectOne(`${environment.baseUrl}/auth/login`)
       req.error(errorResponse)
-      expect(notificationHandleErrorSpy).toHaveBeenCalledTimes(1)
+      expect(notificationService.handleError).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -124,11 +129,10 @@ describe('Auth service test', () => {
 
     it('logout should invoke handleError method of notificationService when request fails', () => {
       const errorResponse = new ErrorEvent('test')
-      const notificationErrorHandleSpy = spyOn(notificationService, 'handleError')
       service.logout()
       const req = httpTestingController.expectOne(`${environment.baseUrl}/auth/login`)
       req.error(errorResponse)
-      expect(notificationErrorHandleSpy).toHaveBeenCalledTimes(1)
+      expect(notificationService.handleError).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -172,11 +176,10 @@ describe('Auth service test', () => {
 
     it('me method should invoke handleError method of notificationService if request fails', () => {
       const errorResponse = new ErrorEvent('test')
-      const notificationHandleErrorSpy = spyOn(notificationService, 'handleError')
       service.me()
       const req = httpTestingController.expectOne(`${environment.baseUrl}/auth/me`)
       req.error(errorResponse)
-      expect(notificationHandleErrorSpy).toHaveBeenCalledTimes(1)
+      expect(notificationService.handleError).toHaveBeenCalledTimes(1)
     })
   })
 })
