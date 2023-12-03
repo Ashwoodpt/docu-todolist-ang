@@ -6,6 +6,7 @@ import { environment } from 'src/environments/environment'
 import { CommonResponseType } from 'src/app/core/models/core.models'
 import { ResultCodeEnum } from 'src/app/core/enums/resultCode.enum'
 import { HttpResponse } from '@angular/common/http'
+import { LoggerService } from 'src/app/shared/services/logger.service'
 
 const todoId = 'fakeTodoListId'
 
@@ -92,22 +93,28 @@ const successfulResponse: CommonResponseType<{ item: Task }> = {
   messages: [],
 }
 
+const fakeLoggerService = jasmine.createSpyObj('LoggerService', ['info', 'warn', 'error'])
+
 describe('tasks service test', () => {
   let service: TasksService
   let httpTestingController: HttpTestingController
+  let loggerService: LoggerService
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [TasksService],
+      providers: [TasksService, { provide: LoggerService, useValue: fakeLoggerService }],
       imports: [HttpClientTestingModule],
     })
 
     service = TestBed.inject(TasksService)
     httpTestingController = TestBed.inject(HttpTestingController)
+    loggerService = TestBed.inject(LoggerService)
   })
 
   afterEach(() => {
     httpTestingController.verify()
+    fakeLoggerService.info.calls.reset()
+    fakeLoggerService.error.calls.reset()
   })
 
   it('tasks service should init', () => {
@@ -116,6 +123,10 @@ describe('tasks service test', () => {
 
   it('should initialize with empty tasks$', () => {
     expect(service.tasks$.getValue()).toEqual({})
+  })
+
+  it('tasks service should invoke info method of LoggerService to inform about its initialization', () => {
+    expect(loggerService.info).toHaveBeenCalledTimes(1)
   })
 
   describe('getTasks method tests', () => {
@@ -144,6 +155,37 @@ describe('tasks service test', () => {
       req.error(new ErrorEvent('404'))
       expect(service.tasks$.value[todoId]).toBeFalsy()
     })
+
+    it('getTasks method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.getTasks(todoId)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('getTasks method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.getTasks(todoId)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      req.flush(mockResponse)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('getTaks method should invoke error method of LoggerService to inform about an error with request', () => {
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.getTasks(todoId)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('addTask method tests', () => {
@@ -155,7 +197,7 @@ describe('tasks service test', () => {
       expect(request.method).toEqual('POST')
     })
 
-    it('addTasks should update tasks$ with new task if the request was successful', () => {
+    it('addTask should update tasks$ with new task if the request was successful', () => {
       service.tasks$.next({ [todoId]: [] })
       service.addTask(todoId, title)
       const req = httpTestingController.expectOne(
@@ -165,7 +207,7 @@ describe('tasks service test', () => {
       expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockTask] })
     })
 
-    it('addTasks should not update tasks$ if the request was unsuccessful', () => {
+    it('addTask should not update tasks$ if the request was unsuccessful', () => {
       service.tasks$.next({ [todoId]: [] })
       service.addTask(todoId, title)
       const req = httpTestingController.expectOne(
@@ -174,9 +216,44 @@ describe('tasks service test', () => {
       req.error(new ErrorEvent('404'))
       expect(service.tasks$.getValue()).toEqual({ [todoId]: [] })
     })
+
+    it('addTask method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.addTask(todoId, title)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+    it('addTask method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.tasks$.next({ [todoId]: [] })
+      service.addTask(todoId, title)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      req.flush(successfulResponse)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('addTask method should invoke error method of LoggerService to inform about error with request', () => {
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.addTask(todoId, title)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks`
+      )
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('deleteTask method tests', () => {
+    const successfulResponse = new HttpResponse({
+      status: 200,
+    })
+    const errorEvent = new ErrorEvent('404')
     it('deleteTask should invoke DELETE method of httpService', () => {
       service.deleteTask(todoId, taskId)
       const { request } = httpTestingController.expectOne(
@@ -186,9 +263,6 @@ describe('tasks service test', () => {
     })
 
     it('deleteTask should update the tasks$ if the request was successful', () => {
-      const successfulResponse = new HttpResponse({
-        status: 200,
-      })
       service.tasks$.next({ [todoId]: [mockTask] })
       service.deleteTask(todoId, taskId)
       const req = httpTestingController.expectOne(
@@ -208,35 +282,100 @@ describe('tasks service test', () => {
       expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockTask] })
     })
 
-    describe('updateTask tests', () => {
-      it('updateTask should invoke PUT method of httpClient', () => {
-        service.tasks$.next({ [todoId]: [mockTask] })
-        service.updateTask(todoId, taskId, mockTaskUpdate)
-        const { request } = httpTestingController.expectOne(
-          `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
-        )
-        expect(request.method).toEqual('PUT')
-      })
+    it('deleteTask mehod should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.deleteTask(todoId, taskId)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
 
-      it('updateTask should update tasks$ if the request was successful', () => {
-        service.tasks$.next({ [todoId]: [mockTask] })
-        service.updateTask(todoId, taskId, mockTaskUpdate)
-        const req = httpTestingController.expectOne(
-          `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
-        )
-        req.flush(successfulResponse)
-        expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockUpdatedTask] })
-      })
+    it('deleteTask mehod should invoke info method of LoggerService to inform about request being successful', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      service.deleteTask(todoId, taskId)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.event(successfulResponse)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
 
-      it('updateTask should NOT update the tasks$ if the request was unsuccessful', () => {
-        service.tasks$.next({ [todoId]: [mockTask] })
-        service.updateTask(todoId, taskId, mockTaskUpdate)
-        const req = httpTestingController.expectOne(
-          `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
-        )
-        req.error(new ErrorEvent('404'))
-        expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockTask] })
-      })
+    it('deleteTask mehod should invoke error method of LoggerService to inform about request being unsuccessful', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      fakeLoggerService.info.calls.reset()
+      service.deleteTask(todoId, taskId)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('updateTask tests', () => {
+    it('updateTask should invoke PUT method of httpClient', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      const { request } = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      expect(request.method).toEqual('PUT')
+    })
+
+    it('updateTask should update tasks$ if the request was successful', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.flush(successfulResponse)
+      expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockUpdatedTask] })
+    })
+
+    it('updateTask should NOT update the tasks$ if the request was unsuccessful', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.error(new ErrorEvent('404'))
+      expect(service.tasks$.getValue()).toEqual({ [todoId]: [mockTask] })
+    })
+
+    it('updateTask method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('updateTask method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.tasks$.next({ [todoId]: [mockTask] })
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.flush(successfulResponse)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('updateTask method should invoke error method of LoggerService to inform about request being unsuccessful', () => {
+      const errorEvent = new ErrorEvent('404')
+      service.tasks$.next({ [todoId]: [mockTask] })
+      fakeLoggerService.info.calls.reset()
+      service.updateTask(todoId, taskId, mockTaskUpdate)
+      const req = httpTestingController.expectOne(
+        `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`
+      )
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
     })
   })
 })

@@ -1,3 +1,4 @@
+import { LoggerService } from 'src/app/shared/services/logger.service'
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse } from '@angular/common/http'
 import { BehaviorSubject, EMPTY } from 'rxjs'
@@ -11,13 +12,18 @@ import { environment } from 'src/environments/environment'
 import { catchError, map } from 'rxjs/operators'
 import { CommonResponseType } from 'src/app/core/models/core.models'
 
+const tasksLoggerFile = 'TasksLogger'
+
 @Injectable({
   providedIn: 'root',
 })
 export class TasksService {
   tasks$ = new BehaviorSubject<DomainTask>({})
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private loggerService: LoggerService) {
+    this.loggerService.info('Taks service initialized', tasksLoggerFile)
+  }
   getTasks(todoId: string) {
+    this.loggerService.info('Getting new tasks from the server...', tasksLoggerFile)
     this.http
       .get<GetTasksResponse>(`${environment.baseUrl}/todo-lists/${todoId}/tasks`)
       .pipe(catchError(this.handleError.bind(this)))
@@ -26,9 +32,11 @@ export class TasksService {
         const stateTasks = this.tasks$.getValue()
         stateTasks[todoId] = res
         this.tasks$.next(stateTasks)
+        this.loggerService.info('new tasks recieved, data updated', tasksLoggerFile)
       })
   }
   addTask(todoId: string, title: string) {
+    this.loggerService.info('sending new task to the server...', tasksLoggerFile)
     this.http
       .post<CommonResponseType<{ item: Task }>>(
         `${environment.baseUrl}/todo-lists/${todoId}/tasks`,
@@ -46,9 +54,11 @@ export class TasksService {
       )
       .subscribe(res => {
         this.tasks$.next(res)
+        this.loggerService.info('new task added successfuly', tasksLoggerFile)
       })
   }
   deleteTask(todoId: string, taskId: string) {
+    this.loggerService.info('deleting task from server...', tasksLoggerFile)
     this.http
       .delete<CommonResponseType>(`${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`)
       .pipe(catchError(this.handleError.bind(this)))
@@ -62,10 +72,12 @@ export class TasksService {
       )
       .subscribe(res => {
         this.tasks$.next(res)
+        this.loggerService.info('task deleted successfully', tasksLoggerFile)
       })
   }
 
   updateTask(todoId: string, taskId: string, newTask: UpdateTaskRequest) {
+    this.loggerService.info('updating task on the server...', tasksLoggerFile)
     this.http
       .put<CommonResponseType<{ item: Task }>>(
         `${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}`,
@@ -85,10 +97,11 @@ export class TasksService {
       )
       .subscribe(res => {
         this.tasks$.next(res)
+        this.loggerService.info('task updated successfully', tasksLoggerFile)
       })
   }
   private handleError(error: HttpErrorResponse) {
-    // theoretical error handling
+    this.loggerService.error(error.message, tasksLoggerFile)
     return EMPTY
   }
 }

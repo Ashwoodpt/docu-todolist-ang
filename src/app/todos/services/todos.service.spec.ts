@@ -3,6 +3,7 @@ import { TodosService } from './todos.service'
 import { TestBed } from '@angular/core/testing'
 import { DomainTodo } from '../models/todos.models'
 import { environment } from 'src/environments/environment'
+import { LoggerService } from 'src/app/shared/services/logger.service'
 
 const mockTitle = 'some title'
 const mockUpdatedTitle = 'new and shiny title'
@@ -16,29 +17,38 @@ const mockTodo: DomainTodo = {
   filter: 'all',
 }
 
+const fakeLoggerService = jasmine.createSpyObj('LoggerService', ['info', 'warn', 'error'])
+
 describe('todos service tests', () => {
   let service: TodosService
   let httpTestingController: HttpTestingController
+  let loggerService: LoggerService
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [TodosService],
+      providers: [TodosService, { provide: LoggerService, useValue: fakeLoggerService }],
       imports: [HttpClientTestingModule],
     })
 
     service = TestBed.inject(TodosService)
     httpTestingController = TestBed.inject(HttpTestingController)
+    loggerService = TestBed.inject(LoggerService)
   })
 
   afterEach(() => {
     httpTestingController.verify()
+    fakeLoggerService.info.calls.reset()
+    fakeLoggerService.error.calls.reset()
   })
 
-  it('should initialize', () => {
+  it('todos service should initialize', () => {
     expect(service).toBeDefined()
   })
-  it('should initialize with todos$ being empty', () => {
+  it('todos service should initialize with todos$ being empty', () => {
     expect(service.todos$.getValue()).toEqual([])
+  })
+  it('todos service should invoke info method of LoggerService to inform about its initialization', () => {
+    expect(loggerService.info).toHaveBeenCalledTimes(1)
   })
 
   describe('getTodos method testing', () => {
@@ -61,6 +71,31 @@ describe('todos service tests', () => {
       req.error(new ErrorEvent('404'))
       expect(service.todos$.getValue()).toEqual([])
     })
+
+    it('getTodos method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.getTodos()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('getTodos method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.getTodos()
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      req.flush([mockTodo])
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('getTodos method should invoke info method of LoggerService to inform about request being unsuccessful', () => {
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.getTodos()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('addTodo method testing', () => {
@@ -82,6 +117,31 @@ describe('todos service tests', () => {
       const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
       req.error(new ErrorEvent('404'))
       expect(service.todos$.getValue()).toEqual([])
+    })
+
+    it('addTodo method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.addTodo(mockTitle)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('addTodo method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.addTodo(mockTitle)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      req.flush({ data: { item: mockTodo } })
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('addTodo method should invoke info method of LoggerService to inform about request being unsuccessful', () => {
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.addTodo(mockTitle)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists`)
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -109,6 +169,33 @@ describe('todos service tests', () => {
       req.error(new ErrorEvent('404'))
       expect(service.todos$.getValue()).toEqual([mockTodo])
     })
+
+    it('deleteTodo method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.deleteTodo(todoId)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('deleteTodo method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.todos$.next([mockTodo])
+      service.deleteTodo(todoId)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      req.flush('')
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('deleteTodo method should invoke info method of LoggerService to inform about request being unsuccessful', () => {
+      service.todos$.next([mockTodo])
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.deleteTodo(todoId)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('updateTodoTitle method testing', () => {
@@ -135,6 +222,33 @@ describe('todos service tests', () => {
       req.error(new ErrorEvent('404'))
       expect(service.todos$.getValue()).toEqual([mockTodo])
     })
+
+    it('updateTodoTitle method should invoke info method of LoggerService to inform about request being sent', () => {
+      fakeLoggerService.info.calls.reset()
+      service.updateTodoTitle(todoId, mockUpdatedTitle)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('updateTodoTitle method should invoke info method of LoggerService to inform about request being successful', () => {
+      service.todos$.next([mockTodo])
+      service.updateTodoTitle(todoId, mockUpdatedTitle)
+      fakeLoggerService.info.calls.reset()
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      req.flush('')
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+    })
+
+    it('updateTodoTitle method should invoke info method of LoggerService to inform about request being unsuccessful', () => {
+      service.todos$.next([mockTodo])
+      const errorEvent = new ErrorEvent('404')
+      fakeLoggerService.info.calls.reset()
+      service.updateTodoTitle(todoId, mockUpdatedTitle)
+      const req = httpTestingController.expectOne(`${environment.baseUrl}/todo-lists/${todoId}`)
+      req.error(errorEvent)
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
+      expect(loggerService.error).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('changeFilter method testing', () => {
@@ -151,6 +265,13 @@ describe('todos service tests', () => {
         { ...mockTodo, filter: 'completed' },
         { ...mockTodo, id: 'somerandomid' },
       ])
+    })
+
+    it('changeFilter should invoke info method of LoggerService to inform about filter change', () => {
+      fakeLoggerService.info.calls.reset()
+      service.todos$.next([mockTodo])
+      service.changeFilter(todoId, 'completed')
+      expect(loggerService.info).toHaveBeenCalledTimes(1)
     })
   })
 })
