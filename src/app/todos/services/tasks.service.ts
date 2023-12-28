@@ -100,6 +100,15 @@ export class TasksService {
         this.loggerService.info('task updated successfully', tasksLoggerFile)
       })
   }
+
+  reorderTasks(todoId: string, taskId: string, putAfterItemId: string) {
+    this.http
+      .put(`${environment.baseUrl}/todo-lists/${todoId}/tasks/${taskId}/reorder`, {
+        putAfterItemId: putAfterItemId,
+      })
+      .pipe(catchError(this.handleError.bind(this)))
+      .subscribe(res => {})
+  }
   private handleError(error: HttpErrorResponse) {
     this.loggerService.error(error.message, tasksLoggerFile)
     return EMPTY

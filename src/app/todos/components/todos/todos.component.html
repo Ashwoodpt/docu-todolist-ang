@@ -8,7 +8,7 @@
     <input class="input" type="text" placeholder="Add new Todo" [(ngModel)]="todoTitle" />
     <button (click)="addTodoHandler()">+</button>
   </div>
-  <div class="todos-box">
+  <div class="todos-box" cdkDropListGroup>
     <tl-todo
       *ngFor="let todo of todos$ | async"
       [todo]="todo"

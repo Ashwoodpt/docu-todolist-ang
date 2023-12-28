@@ -8,6 +8,7 @@ import { TasksComponent } from './components/todos/todo/tasks/tasks.component'
 import { TaskComponent } from './components/todos/todo/tasks/task/task.component'
 import { TodoFiltersComponent } from './components/todos/todo/todo-filters/todo-filters.component'
 import { TodoFooterComponent } from './components/todos/todo/todo-footer/todo-footer.component'
+import { DragDropModule } from '@angular/cdk/drag-drop'
 
 @NgModule({
   declarations: [
@@ -18,6 +19,6 @@ import { TodoFooterComponent } from './components/todos/todo/todo-footer/todo-fo
     TodoFiltersComponent,
     TodoFooterComponent,
   ],
-  imports: [CommonModule, TodosRoutingModule, FormsModule],
+  imports: [CommonModule, TodosRoutingModule, FormsModule, DragDropModule],
 })
 export class TodosModule {}

@@ -5,6 +5,7 @@ import { Task, UpdateTaskRequest } from 'src/app/todos/models/tasks.models'
 import { map } from 'rxjs/operators'
 import { TodosService } from 'src/app/todos/services/todos.service'
 import { TaskStatusEnum } from 'src/app/core/enums/taskStatus.enum'
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop'
 
 @Component({
   selector: 'tl-tasks',
@@ -48,5 +49,16 @@ export class TasksComponent implements OnInit {
 
   changeTaskStatus(event: { taskId: string; newTask: UpdateTaskRequest }) {
     this.tasksService.updateTask(this.todoId, event.taskId, event.newTask)
+  }
+
+  handleDrop(event: CdkDragDrop<Task[]>): void {
+    const { todoListId, id, title } = event.item.data
+    if (event.previousContainer === event.container) {
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex)
+      this.tasksService.reorderTasks(todoListId, id, event.container.data[event.currentIndex].id)
+    } else {
+      this.tasksService.addTask(this.todoId, title)
+      this.tasksService.deleteTask(todoListId, id)
+    }
   }
 }
